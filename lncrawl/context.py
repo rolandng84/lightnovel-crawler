@@ -115,6 +115,11 @@ class AppContext:
         return BinderService()
 
     @cached_property
+    def watcher(self):
+        from .services.watcher import WatcherService
+        return WatcherService()
+
+    @cached_property
     def scheduler(self):
         from .services.scheduler import JobScheduler
         return JobScheduler()

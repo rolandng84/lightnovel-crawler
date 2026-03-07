@@ -14,6 +14,7 @@ from .novels import router as novel
 from .settings import router as settings
 from .users import router as user
 from .volumes import router as volume
+from .watcher import router as watcher
 
 router = APIRouter()
 
@@ -91,6 +92,13 @@ router.include_router(
     prefix='/feedback',
     tags=['Feedback'],
     dependencies=[Depends(ensure_user)],
+)
+
+router.include_router(
+    watcher,
+    prefix='/watcher',
+    tags=['Watcher'],
+    dependencies=[Security(ensure_user)],
 )
 
 router.include_router(

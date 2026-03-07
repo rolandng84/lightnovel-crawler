@@ -28,6 +28,10 @@ def reset_runner(signal: Event):
     logger.info("Runner reset")
 
 
+def run_watcher(signal: Event):
+    ctx.watcher.run_check(signal)
+
+
 class JobScheduler:
     def __init__(self) -> None:
         self._threads: List[Thread] = []
@@ -52,6 +56,7 @@ class JobScheduler:
             self._thread(run_jobs, ctx.config.crawler.runner_cooldown)
         self._thread(run_artifact_maker, ctx.config.crawler.runner_cooldown)
         self._thread(reset_runner, ctx.config.crawler.runner_reset_interval)
+        self._thread(run_watcher, 60)  # check every 60s, per-novel interval respected
         logger.info("Scheduler started")
 
     def stop(self):

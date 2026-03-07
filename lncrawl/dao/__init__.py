@@ -14,6 +14,7 @@ from .novel import Novel
 from .read_history import ReadHistory
 from .secrets import Secret
 from .tag import Tag
+from .tracked_novel import TrackedNovel
 from .user import User, UserToken, VerifiedEmail
 from .volume import Volume
 
@@ -33,6 +34,7 @@ models: List[Type[SQLModel]] = [
     Job,
     Secret,
     Feedback,
+    TrackedNovel,
 ]
 
 tables: List[Table] = [
