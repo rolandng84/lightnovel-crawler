@@ -91,6 +91,51 @@ docker buildx build --platform linux/amd64,linux/arm64 -t lncrawl .
 
 ## Docker Compose Files
 
+### Self-Hosted Deployment (`docker-compose.yml`)
+
+Complete self-hosted stack that builds the frontend from source:
+
+```bash
+# Quick start
+cp .env.example .env   # edit POSTGRES_PASSWORD
+docker compose up -d
+
+# Server available at http://localhost:8080
+# Default login: admin / admin
+```
+
+Uses `Dockerfile.selfhost` which:
+1. Clones and builds the frontend (React SPA) from source
+2. Installs Python dependencies via uv
+3. Bundles everything on the upstream base image (Calibre + system deps)
+
+Environment variables (`.env`):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `8080` | External port |
+| `POSTGRES_PASSWORD` | `changeme` | PostgreSQL password |
+
+Build arguments for customization:
+
+| Arg | Default | Description |
+|-----|---------|-------------|
+| `FRONTEND_REPO` | `https://github.com/rolandng84/lncrawl-web.git` | Frontend repo |
+| `FRONTEND_BRANCH` | `main` | Frontend branch |
+| `BASE_IMAGE` | `ghcr.io/lncrawl/lncrawl-base:latest` | Base image |
+
+### Coolify Deployment
+
+1. Create a new service pointing to the `lightnovel-crawler` repo
+2. Set Dockerfile path to `Dockerfile.selfhost`
+3. Add a PostgreSQL service
+4. Set environment variables:
+   - `LNCRAWL_DATA_PATH=/data`
+   - `DATABASE_URL=postgresql+psycopg://user:pass@postgres:5432/lncrawl`
+5. Mount a persistent volume at `/data`
+6. Expose port `8080`
+7. Healthcheck is built in at `/api/ping`
+
 ### Local Development (`scripts/local-compose.yml`)
 
 Basic setup for local development with PostgreSQL.

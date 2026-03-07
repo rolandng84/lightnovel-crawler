@@ -69,7 +69,7 @@ uv run python -m lncrawl
 **FastAPI Server**: `lncrawl/server/app.py`
 
 - REST API at `/api`, frontend at `/`
-- Endpoints in `lncrawl/server/api/`: novels, chapters, volumes, jobs, artifacts, auth, libraries
+- Endpoints in `lncrawl/server/api/`: novels, chapters, volumes, jobs, artifacts, auth, libraries, watcher
 
 ### Output Generation
 
@@ -82,7 +82,7 @@ uv run python -m lncrawl
 ### Data Models
 
 - **`lncrawl/models/`**: Chapter, Volume, Novel, SearchResult, Session
-- **`lncrawl/dao/`**: Database access objects (SQLAlchemy/SQLModel)
+- **`lncrawl/dao/`**: Database access objects (SQLAlchemy/SQLModel), includes TrackedNovel
 
 ### Services (via AppContext)
 
@@ -100,6 +100,7 @@ uv run python -m lncrawl
 - **novels**: Novel library management (add/remove novels, metadata)
 - **chapters**: Chapters manager (fetch/save chapter data)
 - **volumes**: Volumes manager (volume/chapter grouping, manipulation)
+- **watcher**: Chapter watcher service (tracks novels for new chapters, auto-downloads)
 
 All services are **lazily loaded** as properties of the context to optimize performance and resource use.
 
@@ -123,3 +124,60 @@ For JS-heavy sites use browser examples (`_09`–`_17`).
 Alternative: base **`Crawler`** with `read_novel_info()` and `download_chapter_body()` via `_00_basic.py`.
 
 Test: `uv run python -m lncrawl -s "URL" --first 3 -f` and `uv run python -m lncrawl sources list | grep mysite`.
+
+## Chapter Watcher (Fork Addition)
+
+The watcher service periodically checks tracked novels for new chapters and optionally auto-downloads them.
+
+### Key Files
+
+- **`lncrawl/dao/tracked_novel.py`**: TrackedNovel model (user_id, novel_url, check_interval, auto_download, etc.)
+- **`lncrawl/services/watcher.py`**: WatcherService with CRUD + `check_novel()` + `run_check()` loop
+- **`lncrawl/server/api/watcher.py`**: API endpoints at `/api/watcher/*`
+- **`lncrawl/server/models/watcher.py`**: Request/response Pydantic models
+- **Frontend**: `src/pages/TrackedNovels/` in the `lncrawl-web` repo
+
+### API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/watchers` | List user's tracked novels |
+| GET | `/api/watcher/all` | List all tracked novels |
+| POST | `/api/watcher` | Track a novel |
+| GET | `/api/watcher/{id}` | Get tracked novel |
+| PATCH | `/api/watcher/{id}` | Update tracked novel |
+| DELETE | `/api/watcher/{id}` | Stop tracking |
+| POST | `/api/watcher/{id}/check` | Force check now |
+
+### How It Works
+
+1. Scheduler runs `run_check()` every 60 seconds (daemon thread)
+2. For each active, non-complete tracked novel where `check_interval_minutes` has elapsed:
+   - Calls `ctx.crawler.fetch_novel()` to get current chapter count
+   - Compares with `last_known_chapters`
+   - If new chapters found and `auto_download` is true, creates a download job
+3. Errors are captured in `last_error` and `last_checked_at` is always updated
+
+## Self-Hosted Docker Deployment (Fork Addition)
+
+### Files
+
+- **`Dockerfile.selfhost`**: Multi-stage build (Node 22 frontend + upstream base image)
+- **`docker-compose.yml`**: PostgreSQL + app with healthchecks and named volumes
+- **`.env.example`**: Configuration template
+
+### Quick Start
+
+```bash
+cp .env.example .env   # edit POSTGRES_PASSWORD
+docker compose up -d
+# Server at http://localhost:8080, login with admin/admin
+```
+
+### Build Args
+
+| Arg | Default | Description |
+|-----|---------|-------------|
+| `FRONTEND_REPO` | `https://github.com/rolandng84/lncrawl-web.git` | Frontend source repo |
+| `FRONTEND_BRANCH` | `main` | Frontend branch to build |
+| `BASE_IMAGE` | `ghcr.io/lncrawl/lncrawl-base:latest` | Base image with Calibre + deps |
