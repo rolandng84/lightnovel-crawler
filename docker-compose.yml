@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: lncrawl
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: lncrawl
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lncrawl"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.selfhost
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LNCRAWL_DATA_PATH=/data
+      - DATABASE_URL=postgresql+psycopg://lncrawl:${POSTGRES_PASSWORD:-changeme}@postgres:5432/lncrawl
+    volumes:
+      - appdata:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  appdata:
