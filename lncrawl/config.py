@@ -240,7 +240,7 @@ class AppConfig(_Section):
 
     @property
     def openai_key(self) -> str:
-        return self._get("openai_api_key", "")
+        return os.getenv("OPENAI_API_KEY") or self._get("openai_api_key", "")
 
     @openai_key.setter
     def openai_key(self, v: str) -> None:
@@ -314,7 +314,7 @@ class DatabaseConfig(_Section):
     @property
     def admin_email(self) -> str:
         """Admin email"""
-        return self._get("admin_email", "admin")
+        return os.getenv("LNCRAWL_ADMIN_EMAIL") or self._get("admin_email", "admin")
 
     @admin_email.setter
     def admin_email(self, v: str) -> None:
@@ -323,7 +323,7 @@ class DatabaseConfig(_Section):
     @property
     def admin_password(self) -> str:
         """Admin password"""
-        return self._get("admin_password", "admin")
+        return os.getenv("LNCRAWL_ADMIN_PASSWORD") or self._get("admin_password", "admin")
 
     @admin_password.setter
     def admin_password(self, v: str) -> None:
@@ -440,6 +440,9 @@ class ServerConfig(_Section):
 
     @property
     def base_url(self) -> str:
+        env_url = os.getenv("LNCRAWL_BASE_URL")
+        if env_url:
+            return env_url.strip("/")
         return self._get("base_url", "http://localhost:8080").strip("/")
 
     @base_url.setter
@@ -448,7 +451,7 @@ class ServerConfig(_Section):
 
     @property
     def token_secret(self) -> str:
-        return self._get("token_secret", lambda: str(uuid.uuid4()))
+        return os.getenv("LNCRAWL_TOKEN_SECRET") or self._get("token_secret", lambda: str(uuid.uuid4()))
 
     @token_secret.setter
     def token_secret(self, v: str) -> None:

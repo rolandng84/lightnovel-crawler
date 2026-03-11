@@ -24,6 +24,11 @@ services:
       - PYTHONUNBUFFERED=1
       - LNCRAWL_DATA_PATH=/data
       - DATABASE_URL=postgresql+psycopg://lncrawl:${POSTGRES_PASSWORD:-changeme}@postgres:5432/lncrawl
+      - LNCRAWL_ADMIN_EMAIL=${LNCRAWL_ADMIN_EMAIL:-admin}
+      - LNCRAWL_ADMIN_PASSWORD=${LNCRAWL_ADMIN_PASSWORD:-admin}
+      - LNCRAWL_TOKEN_SECRET=${LNCRAWL_TOKEN_SECRET:-}
+      - LNCRAWL_BASE_URL=${LNCRAWL_BASE_URL:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
     volumes:
       - appdata:/data
     depends_on:
