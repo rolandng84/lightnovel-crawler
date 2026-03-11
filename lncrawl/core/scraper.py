@@ -82,8 +82,8 @@ class Scraper(TaskManager, SoupMaker):
             rotate_tls_ciphers=True,       # CRITICAL: Avoids cipher detection
 
             # Enhanced protection
-            auto_refresh_on_403=False,     # Auto-recover from 403 errors
-            max_403_retries=0,             # Max retry attempts
+            auto_refresh_on_403=True,      # Auto-recover from 403 errors
+            max_403_retries=3,             # Max retry attempts
             session_refresh_interval=900,  # Session refresh time in seconds
 
             # Optimized stealth mode
