@@ -21,7 +21,8 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - LNCRAWL_DATA_PATH=/data
-      - DATABASE_URL=postgresql+psycopg://lncrawl:${POSTGRES_PASSWORD:-changeme}@postgres:5432/lncrawl
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - DB_HOST=postgres
       - LNCRAWL_ADMIN_EMAIL=${LNCRAWL_ADMIN_EMAIL:-admin}
       - LNCRAWL_ADMIN_PASSWORD=${LNCRAWL_ADMIN_PASSWORD:-admin}
       - LNCRAWL_TOKEN_SECRET=${LNCRAWL_TOKEN_SECRET:-}

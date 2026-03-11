@@ -255,8 +255,21 @@ class DatabaseConfig(_Section):
 
     def __url(self) -> str:
         env_url = os.getenv("DATABASE_URL")
+        if env_url:
+            return env_url
+        # Build URL from component env vars (handles special chars in password)
+        db_password = os.getenv("POSTGRES_PASSWORD")
+        if db_password:
+            from urllib.parse import quote
+
+            driver = os.getenv("DB_DRIVER", "postgresql+psycopg")
+            user = os.getenv("DB_USER", "lncrawl")
+            host = os.getenv("DB_HOST", "postgres")
+            port = os.getenv("DB_PORT", "5432")
+            name = os.getenv("DB_NAME", "lncrawl")
+            return f"{driver}://{user}:{quote(db_password, safe='')}@{host}:{port}/{name}"
         sqlite_url = f"sqlite:///{(APP_DIR / 'sqlite.db').resolve().as_posix()}"
-        return env_url or sqlite_url
+        return sqlite_url
 
     @property
     def url(self) -> str:
