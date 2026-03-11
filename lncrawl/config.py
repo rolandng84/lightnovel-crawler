@@ -186,7 +186,11 @@ class Config(object):
 
     # -------------------------------------------------------------- #
 
-    def get(self, section: str, key: str, default: Union[None, T, Callable[[], T]] = None) -> Any:
+    def get(self, section: str, key: str, default: Union[None, T, Callable[[], T]] = None, env_var: str = "") -> Any:
+        if env_var:
+            env_val = os.getenv(env_var)
+            if env_val:
+                return env_val
         sub: dict = self._data.setdefault(section, {})
         if key not in sub:
             if callable(default):
@@ -216,8 +220,8 @@ class _Section(object):
         if not self.section:
             raise ValueError(f"section is not defined for {self}")
 
-    def _get(self, key: str, default: Union[T, Callable[[], Any]]) -> T:
-        return self.root.get(self.section, key, default)
+    def _get(self, key: str, default: Union[T, Callable[[], Any]], env_var: str = "") -> T:
+        return self.root.get(self.section, key, default, env_var=env_var)
 
     def _set(self, key: str, value: Any) -> None:
         self.root.set(self.section, key, value)
@@ -240,7 +244,7 @@ class AppConfig(_Section):
 
     @property
     def openai_key(self) -> str:
-        return os.getenv("OPENAI_API_KEY") or self._get("openai_api_key", "")
+        return self._get("openai_api_key", "", env_var="OPENAI_API_KEY")
 
     @openai_key.setter
     def openai_key(self, v: str) -> None:
@@ -343,7 +347,7 @@ class DatabaseConfig(_Section):
     @property
     def admin_email(self) -> str:
         """Admin email"""
-        return os.getenv("LNCRAWL_ADMIN_EMAIL") or self._get("admin_email", "admin")
+        return self._get("admin_email", "admin", env_var="LNCRAWL_ADMIN_EMAIL")
 
     @admin_email.setter
     def admin_email(self, v: str) -> None:
@@ -352,7 +356,7 @@ class DatabaseConfig(_Section):
     @property
     def admin_password(self) -> str:
         """Admin password"""
-        return os.getenv("LNCRAWL_ADMIN_PASSWORD") or self._get("admin_password", "admin")
+        return self._get("admin_password", "admin", env_var="LNCRAWL_ADMIN_PASSWORD")
 
     @admin_password.setter
     def admin_password(self, v: str) -> None:
@@ -395,7 +399,7 @@ class CrawlerConfig(_Section):
 
     @property
     def selenium_grid(self) -> str:
-        return self._get("selenium_grid", os.getenv("SELENIUM_GRID", ""))
+        return self._get("selenium_grid", "", env_var="SELENIUM_GRID")
 
     @selenium_grid.setter
     def selenium_grid(self, url: str) -> None:
@@ -469,10 +473,7 @@ class ServerConfig(_Section):
 
     @property
     def base_url(self) -> str:
-        env_url = os.getenv("LNCRAWL_BASE_URL")
-        if env_url:
-            return env_url.strip("/")
-        return self._get("base_url", "http://localhost:8080").strip("/")
+        return self._get("base_url", "http://localhost:8080", env_var="LNCRAWL_BASE_URL").strip("/")
 
     @base_url.setter
     def base_url(self, v: str) -> None:
@@ -480,7 +481,7 @@ class ServerConfig(_Section):
 
     @property
     def token_secret(self) -> str:
-        return os.getenv("LNCRAWL_TOKEN_SECRET") or self._get("token_secret", lambda: str(uuid.uuid4()))
+        return self._get("token_secret", lambda: str(uuid.uuid4()), env_var="LNCRAWL_TOKEN_SECRET")
 
     @token_secret.setter
     def token_secret(self, v: str) -> None:
