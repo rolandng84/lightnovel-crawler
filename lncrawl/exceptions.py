@@ -146,6 +146,7 @@ class ServerErrors:
     no_such_chapter = ServerError(404, "No such chapter")
     no_such_artifact = ServerError(404, "No such artifact")
     no_artifact_file = ServerError(404, "Artifact file not available")
+    no_failed_items = ServerError(400, "No failed items to retry")
 
     no_novel_title = ServerError(500, "Novel has no title")
     no_chapters = ServerError(500, 'No chapters found')

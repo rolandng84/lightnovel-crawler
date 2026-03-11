@@ -82,6 +82,15 @@ def replay_job(
     )
 
 
+@router.post("/{job_id}/retry-failed", summary='Retry only failed items of a job')
+def retry_failed_job(
+    user: User = Security(ensure_user),
+    job_id: str = Path(),
+) -> Job:
+    job = ctx.jobs.get(job_id)
+    return ctx.jobs.retry_failed(user, job)
+
+
 @router.post("/create/fetch-novel", summary='Create a job to fetch novel details')
 def fetch_novel(
     user: User = Security(ensure_user),

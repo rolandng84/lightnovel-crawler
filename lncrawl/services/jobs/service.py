@@ -375,6 +375,69 @@ class JobService:
         )
 
     # -------------------------------------------------------------------------
+    #                            RETRY FAILED
+    # -------------------------------------------------------------------------
+    def retry_failed(self, user: User, job: Job) -> Job:
+        """Create new batch job(s) containing only the failed items from the original job."""
+        with ctx.db.session() as sess:
+            sa_deps = select_descendends(job.id, inclusive=False)
+            failed_jobs = sess.exec(
+                sq.select(Job)
+                .where(sq.col(Job.id).in_(sa_deps))
+                .where(Job.status == JobStatus.FAILED)
+            ).all()
+
+        if not failed_jobs:
+            raise ServerErrors.no_failed_items
+
+        # Collect IDs by leaf job type (deduplicated)
+        chapter_ids = list({
+            j.extra['chapter_id'] for j in failed_jobs
+            if j.type == JobType.CHAPTER and 'chapter_id' in j.extra
+        })
+        image_ids = list({
+            j.extra['image_id'] for j in failed_jobs
+            if j.type == JobType.IMAGE and 'image_id' in j.extra
+        })
+        volume_ids = list({
+            j.extra['volume_id'] for j in failed_jobs
+            if j.type == JobType.VOLUME and 'volume_id' in j.extra
+        })
+
+        # Propagate metadata from original job
+        meta: dict[str, Any] = {}
+        for key in ('novel_title', 'novel_id'):
+            if key in job.extra:
+                meta[key] = job.extra[key]
+
+        result_job = None
+
+        # Create batch jobs — volumes first (cascade to chapters), then chapters, then images
+        if volume_ids:
+            result_job = self.fetch_many_volumes(user, *volume_ids, **meta)
+
+        if chapter_ids:
+            chap_job = self.fetch_many_chapters(
+                user, *chapter_ids,
+                depends_on=result_job.id if result_job else None,
+                **meta,
+            )
+            result_job = result_job or chap_job
+
+        if image_ids:
+            img_job = self.fetch_many_images(
+                user, *image_ids,
+                depends_on=result_job.id if result_job else None,
+                **meta,
+            )
+            result_job = result_job or img_job
+
+        if not result_job:
+            raise ServerErrors.no_failed_items
+
+        return result_job
+
+    # -------------------------------------------------------------------------
     #                              DELETE Jobs
     # -------------------------------------------------------------------------
     def delete(self, job_id: str) -> None:
