@@ -1,15 +1,5 @@
-# Stage 1: Build frontend from source
-FROM node:22-slim AS frontend
-
-WORKDIR /web
-
-RUN apt-get update && apt-get install -y --no-install-recommends git \
-    && rm -rf /var/lib/apt/lists/*
-RUN git clone --depth 1 --branch main https://github.com/rolandng84/lncrawl-web.git .
-RUN npm ci --ignore-scripts && npm run build
-
-# Stage 2: Application (uses upstream base image with calibre + system deps)
-FROM ghcr.io/lncrawl/lncrawl-base:latest AS app
+# Self-hosted image (frontend pre-built in lncrawl/server/web/)
+FROM ghcr.io/lncrawl/lncrawl-base:latest
 
 WORKDIR /app
 
@@ -18,14 +8,10 @@ COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
-# Copy application code
+# Copy application code (includes pre-built frontend in lncrawl/server/web/)
 COPY LICENSE ./
 COPY lncrawl ./lncrawl
 COPY sources ./sources
-
-# Replace submodule web dir with our freshly built frontend
-RUN rm -rf lncrawl/server/web
-COPY --from=frontend /web/dist ./lncrawl/server/web
 
 # Data directory
 ENV LNCRAWL_DATA_PATH=/data
