@@ -1,55 +1,80 @@
 import logging
-from lncrawl.core.crawler import Crawler
+from typing import Generator, Optional, Union
+
+from bs4 import BeautifulSoup, Tag
+
+from lncrawl.models import Chapter, SearchResult, Volume
+from lncrawl.templates.soup.general import GeneralSoupTemplate
+from lncrawl.templates.soup.searchable import SearchableSoupTemplate
 
 logger = logging.getLogger(__name__)
 
 
-class NovelFireCrawler(Crawler):
+class NovelFireCrawler(SearchableSoupTemplate, GeneralSoupTemplate):
     base_url = [
         "https://novelfire.net/",
     ]
     has_mtl = False
-    has_mange = False
+    has_manga = False
 
     def initialize(self) -> None:
-        self.init_executor(ratelimit=3)
+        self.init_executor(ratelimit=1)
 
-    def read_novel_info(self) -> None:
-        soup = self.get_soup(self.novel_url)
+    def select_search_items(self, query: str) -> Generator[Tag, None, None]:
+        soup = self.get_soup(f"{self.home_url}search?keyword={query}")
+        yield from soup.select(".novel-list .novel-item a.novel-title")
 
-        self.novel_title = soup.find("h1").text.strip()
-        self.novel_author = soup.select_one('span[itemprop="author"]').text.strip()
+    def parse_search_item(self, tag: Tag) -> SearchResult:
+        return SearchResult(
+            title=tag.get_text(strip=True),
+            url=self.absolute_url(tag["href"]),
+        )
 
-        img = soup.select_one(".cover img")
-        self.novel_cover = self.absolute_url(img["src"])
+    def parse_title(self, soup: BeautifulSoup) -> str:
+        tag = soup.select_one("h1.novel-title")
+        assert tag
+        return tag.get_text(strip=True)
 
-        vol_id = 1
-        vol_url = self.novel_url + "/chapters"
+    def parse_cover(self, soup: BeautifulSoup) -> str:
+        tag = soup.select_one("figure.cover img")
+        if tag:
+            return self.absolute_url(tag["src"])
+        return ""
 
-        while vol_url:
-            soup = self.get_soup(self.absolute_url(vol_url))
+    def parse_authors(self, soup: BeautifulSoup) -> Generator[str, None, None]:
+        tag = soup.select_one('span[itemprop="author"]')
+        if tag:
+            yield tag.get_text(strip=True)
 
-            chapters = soup.select("ul.chapter-list li a")
-            for a in chapters:
-                chap_id = len(self.chapters) + 1
-                self.chapters.append({
-                    "id": chap_id,
-                    "volume": vol_id,
-                    "title": a["title"],
-                    "url": self.absolute_url(a["href"]),
-                })
+    def parse_chapter_list(
+        self, soup: BeautifulSoup
+    ) -> Generator[Union[Chapter, Volume], None, None]:
+        chapters_url = self.novel_url.rstrip("/") + "/chapters"
+        page = 1
 
-            self.volumes.append({"id": vol_id})
+        while True:
+            url = chapters_url if page == 1 else f"{chapters_url}?page={page}"
+            list_soup = self.get_soup(url)
 
-            next_vol_a = soup.select_one("a.page-link[rel='next']")
-            if next_vol_a:
-                vol_url = next_vol_a['href']
-                vol_id += 1
-            else:
-                vol_url = False
+            items = list_soup.select("ul.chapter-list li a")
+            if not items:
                 break
 
-    def download_chapter_body(self, chapter) -> str:
-        soup = self.get_soup(chapter["url"])
-        contents = soup.select_one("div#content")
-        return self.cleaner.extract_contents(contents)
+            for a in items:
+                chap_id = len(self.chapters) + 1
+                title_tag = a.select_one("strong.chapter-title")
+                title = title_tag.get_text(strip=True) if title_tag else a.get("title", f"Chapter {chap_id}")
+                yield Chapter(
+                    id=chap_id,
+                    title=title,
+                    url=self.absolute_url(a["href"]),
+                )
+
+            next_link = list_soup.select_one("a.page-link[rel='next']")
+            if next_link:
+                page += 1
+            else:
+                break
+
+    def select_chapter_body(self, soup: BeautifulSoup) -> Optional[Tag]:
+        return soup.select_one("div#content")
