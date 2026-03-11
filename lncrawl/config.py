@@ -276,12 +276,28 @@ class DatabaseConfig(_Section):
         """
         Database URL.
 
+        Env vars take precedence over config.json (which may cache stale values).
+
         Example:
         - postgresql+psycopg://pguser:pgpass@postgres:5432/lncrawl
         - mysql+pymysql://user:password@mysql:3306/lncrawl
         - sqlite:////home/user/sqlite.db
         - sqlite:///sqlite.db
         """
+        # Check env vars first — bypass config.json which may have a stale/broken URL
+        env_url = os.getenv("DATABASE_URL")
+        if env_url:
+            return env_url
+        db_password = os.getenv("POSTGRES_PASSWORD")
+        if db_password:
+            from urllib.parse import quote
+
+            driver = os.getenv("DB_DRIVER", "postgresql+psycopg")
+            user = os.getenv("DB_USER", "lncrawl")
+            host = os.getenv("DB_HOST", "postgres")
+            port = os.getenv("DB_PORT", "5432")
+            name = os.getenv("DB_NAME", "lncrawl")
+            return f"{driver}://{user}:{quote(db_password, safe='')}@{host}:{port}/{name}"
         return self._get("url", self.__url)
 
     @url.setter
