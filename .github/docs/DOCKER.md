@@ -109,12 +109,15 @@ Uses `Dockerfile.selfhost` which:
 2. Installs Python dependencies via uv
 3. Bundles everything on the upstream base image (Calibre + system deps)
 
+Includes a **Selenium Grid sidecar** (`selenium/standalone-chromium`) for browser-based anti-bot handling on sites like novelbin.
+
 Environment variables (`.env`):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `8080` | External port |
 | `POSTGRES_PASSWORD` | `changeme` | PostgreSQL password |
+| `SELENIUM_GRID_URL` | `http://selenium:4444` | Selenium Grid URL for browser crawlers |
 
 Build arguments for customization:
 

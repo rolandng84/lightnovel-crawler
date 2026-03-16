@@ -158,13 +158,71 @@ The watcher service periodically checks tracked novels for new chapters and opti
    - If new chapters found and `auto_download` is true, creates a download job
 3. Errors are captured in `last_error` and `last_checked_at` is always updated
 
+## Retry Failed (Fork Addition)
+
+When a crawl job completes with partial failures (e.g., "Failed: 7%"), the "Retry Failed" button re-processes only the failed items instead of replaying the entire job.
+
+### How It Works
+
+1. `retry_failed()` in `lncrawl/services/jobs/service.py` uses the `select_descendends()` recursive CTE to find ALL failed descendant jobs
+2. Groups failed jobs by type: `CHAPTER`, `IMAGE`, `VOLUME`
+3. Creates appropriate batch jobs (`fetch_many_chapters`, `fetch_many_images`, `fetch_many_volumes`) with only the failed IDs
+4. If multiple types failed, chains them with `depends_on`
+
+### Key Files
+
+- **`lncrawl/services/jobs/service.py`**: `retry_failed()` method
+- **`lncrawl/server/api/jobs.py`**: `POST /{job_id}/retry-failed` endpoint
+- **`lncrawl/exceptions.py`**: `ServerErrors.no_failed_items` error constant
+- **Frontend**: "Retry Failed" button in `src/pages/JobDetails/JobActionButtons.tsx` (lncrawl-web)
+
+### Job Hierarchy
+
+```
+FULL_NOVEL → VOLUME_BATCH → VOLUME → CHAPTER_BATCH → CHAPTER → IMAGE_BATCH → IMAGE
+```
+
+**Replay** creates a new parent job → re-downloads everything. **Retry Failed** finds leaf-level failures and creates targeted batch jobs.
+
+## NovelBin Crawlers (Fork Addition)
+
+Custom crawlers for novelbin sites that use Cloudflare protection.
+
+### Key Files
+
+- **`sources/en/n/novel-bin.py`**: Handles `novelbin.com` and `novelbin.me`
+- **`sources/en/n/novel-bin.net.py`**: Handles `novel-bin.net`
+
+### Anti-Bot Strategy
+
+Both crawlers extend `GeneralBrowserTemplate` + `NovelFullTemplate`:
+- `auto_refresh_on_403 = True` with `max_403_retries = 3`
+- `visit_novel_page_in_browser()` waits for title elements with multiple CSS selectors
+- Falls back to meta tags and `<title>` tag for title parsing
+- Rate-limited to 1 request/second
+
 ## Self-Hosted Docker Deployment (Fork Addition)
 
 ### Files
 
 - **`Dockerfile.selfhost`**: Multi-stage build (Node 22 frontend + upstream base image)
-- **`docker-compose.yml`**: PostgreSQL + app with healthchecks and named volumes
+- **`docker-compose.yml`**: PostgreSQL + app + Selenium Grid with healthchecks and named volumes
 - **`.env.example`**: Configuration template
+
+### Services
+
+| Service | Image | Purpose |
+|---------|-------|---------|
+| `app` | `Dockerfile.selfhost` | Main app (FastAPI + frontend) |
+| `postgres` | `postgres:17-alpine` | Database |
+| `selenium` | `selenium/standalone-chromium` | Browser for anti-bot sites (novelbin, etc.) |
+
+### Environment Variable Overrides
+
+Env vars always override `config.json` cached values. Key vars for Docker/Coolify:
+- `LNCRAWL_DATA_PATH` — Data storage path (default: `/data`)
+- `DATABASE_URL` — PostgreSQL connection string
+- `SELENIUM_GRID_URL` — Selenium Grid URL (e.g., `http://selenium:4444`)
 
 ### Quick Start
 

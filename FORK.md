@@ -13,6 +13,10 @@
 2. **Chapter Watcher** - Track novels for new chapters with auto-download
 3. **Tracked Novels UI** - Frontend page at `/tracked-novels` with check/pause/delete actions
 4. **Self-Host Docker** - `Dockerfile.selfhost` + `docker-compose.yml` for Coolify deployment
+5. **Retry Failed** - Re-process only failed chapters/volumes/images instead of replaying entire job (`POST /api/job/{id}/retry-failed`)
+6. **NovelBin Fixes** - Browser fallback + 403 auto-recovery for novelbin.com/.net/.me with multi-selector title parsing
+7. **Selenium Grid Sidecar** - Optional browser container for sites with anti-bot protection
+8. **Env Var Overrides** - Environment variables always override `config.json` cached values (critical for Docker/Coolify)
 
 ## Phase Status
 
@@ -46,8 +50,12 @@ docker compose up -d
 
 - `AGENTS.md` - Claude Code context (CLAUDE.md equivalent)
 - `Dockerfile.selfhost` - Multi-stage build with frontend
-- `docker-compose.yml` - Self-hosted deployment stack
+- `docker-compose.yml` - Self-hosted deployment stack (app + PostgreSQL + Selenium Grid)
 - `lncrawl/dao/tracked_novel.py` - TrackedNovel model
 - `lncrawl/services/watcher.py` - Watcher service
 - `lncrawl/server/api/watcher.py` - Watcher API endpoints
+- `lncrawl/services/jobs/service.py` - `retry_failed()` method (recursive CTE to find failed descendants)
+- `lncrawl/server/api/jobs.py` - `POST /{job_id}/retry-failed` endpoint
 - `sources/en/n/novelfire.py` - NovelFire crawler
+- `sources/en/n/novel-bin.py` - NovelBin.com/.me crawler (browser fallback)
+- `sources/en/n/novel-bin.net.py` - NovelBin.net crawler (browser fallback)
